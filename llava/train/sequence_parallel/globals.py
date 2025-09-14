@@ -16,7 +16,7 @@
 
 import os
 
-import deepspeed.comm as dist
+# import deepspeed.comm as dist
 import torch
 
 

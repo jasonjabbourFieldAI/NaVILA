@@ -37,6 +37,15 @@ from llava.utils.media import extract_media
 from llava.utils.tokenizer import infer_stop_tokens, tokenize_conversation
 
 
+# # -----------------For pruning--------------------------------
+# # monkeypatch unwrap_model so it doesn’t try deepspeed
+# from transformers.modeling_utils import unwrap_model
+# def safe_unwrap_model(model, *args, **kwargs):
+#     return model
+# import transformers.modeling_utils as modeling_utils
+# modeling_utils.unwrap_model = safe_unwrap_model
+# # -------------------------------------------------
+
 # TODO decide whether should we use metaclass
 class LlavaMetaModel(ABC):
     def init_vlm(self, config: PreTrainedModel = None, *args, **kwargs):
@@ -137,53 +146,57 @@ class LlavaMetaModel(ABC):
         return vlm
 
     ## FIXME we will use this function to save the model in the future
-    def save_pretrained(self, output_dir, state_dict=None):
+    def save_pretrained(self, output_dir, state_dict=None, **kwargs):
         if state_dict is None:
             # other wise fetch from deepspeed
             # state_dict = accelerator.get_state_dict(is_deepspeed_enabled)
             state_dict = self.state_dict()
 
         if getattr(self, "tokenizer", None):
-            self.tokenizer.save_pretrained(osp.join(output_dir, "llm"))
+            self.tokenizer.save_pretrained(osp.join(output_dir, "llm"), **kwargs)
 
         if self.get_llm():
             print(f"saving llm to {osp.join(output_dir, 'llm')}")
             self.llm.config._name_or_path = osp.join(output_dir, "llm")
             llm_state_dict = OrderedDict({k.split("llm.")[-1]: v for k, v in state_dict.items() if "llm" in k})
-            self.llm.save_pretrained(os.path.join(output_dir, "llm"), state_dict=llm_state_dict)
+            self.llm.save_pretrained(os.path.join(output_dir, "llm"), state_dict=llm_state_dict, **kwargs)
             self.config.llm_cfg = self.llm.config
 
-        if self.get_vision_tower():
-            print(f"saving vision_tower to {osp.join(output_dir, 'vision_tower')}")
-            self.vision_tower.config._name_or_path = osp.join(output_dir, "vision_tower")
-            vision_tower_state_dict = OrderedDict(
-                {k.split("vision_tower.vision_tower.")[-1]: v for k, v in state_dict.items() if "vision_tower" in k}
-            )
-            self.vision_tower.vision_tower.save_pretrained(
-                os.path.join(output_dir, "vision_tower"),
-                state_dict=vision_tower_state_dict,
-            )
-            self.vision_tower.image_processor.save_pretrained(os.path.join(output_dir, "vision_tower"))
-            self.config.vision_tower_cfg = self.vision_tower.config
-            if hasattr(self.config.vision_tower_cfg, "auto_map"):
-                if "radio" not in self.get_vision_tower().__class__.__name__.lower():
-                    delattr(self.config.vision_tower_cfg, "auto_map")
+        # if self.get_vision_tower():
+        #     print(f"saving vision_tower to {osp.join(output_dir, 'vision_tower')}")
+        #     self.vision_tower.config._name_or_path = osp.join(output_dir, "vision_tower")
+        #     vision_tower_state_dict = OrderedDict(
+        #         {k.split("vision_tower.vision_tower.")[-1]: v for k, v in state_dict.items() if "vision_tower" in k}
+        #     )
+        #     self.vision_tower.vision_tower.save_pretrained(
+        #         os.path.join(output_dir, "vision_tower"),
+        #         state_dict=vision_tower_state_dict, **kwargs
+        #     )
+        #     self.vision_tower.image_processor.save_pretrained(os.path.join(output_dir, "vision_tower"), **kwargs)
+        #     self.config.vision_tower_cfg = self.vision_tower.config
+        #     if hasattr(self.config.vision_tower_cfg, "auto_map"):
+        #         if "radio" not in self.get_vision_tower().__class__.__name__.lower():
+        #             delattr(self.config.vision_tower_cfg, "auto_map")
 
-        if self.get_mm_projector():
-            print(f"saving mm_projector to {osp.join(output_dir, 'mm_projector')}")
-            self.mm_projector.config._name_or_path = osp.join(output_dir, "mm_projector")
-            mm_projector_state_dict = OrderedDict(
-                {k.split("mm_projector.")[-1]: v for k, v in state_dict.items() if "mm_projector" in k}
-            )
-            self.mm_projector.save_pretrained(
-                os.path.join(output_dir, "mm_projector"),
-                state_dict=mm_projector_state_dict,
-            )
-            self.config.mm_projector_cfg = self.mm_projector.config
-        ## update and save top-level config
-        self.config._name_or_path = output_dir
-        self.config.architectures = [self.__class__.__name__]
-        self.config.save_pretrained(output_dir)
+        # if self.get_mm_projector():
+        #     print(f"saving mm_projector to {osp.join(output_dir, 'mm_projector')}")
+        #     self.mm_projector.config._name_or_path = osp.join(output_dir, "mm_projector")
+        #     mm_projector_state_dict = OrderedDict(
+        #         {k.split("mm_projector.")[-1]: v for k, v in state_dict.items() if "mm_projector" in k}
+        #     )
+        #     self.mm_projector.save_pretrained(
+        #         os.path.join(output_dir, "mm_projector"),
+        #         state_dict=mm_projector_state_dict, **kwargs
+        #     )
+        #     self.config.mm_projector_cfg = self.mm_projector.config
+
+        # try:
+        #     ## update and save top-level config
+        #     self.config._name_or_path = output_dir
+        #     self.config.architectures = [self.__class__.__name__]
+        #     self.config.save_pretrained(output_dir, **kwargs)
+        # except Exception as e:
+        #     print(f"Error saving config: {e}")
 
     def get_llm(self):
         llm = getattr(self, "llm", None)
