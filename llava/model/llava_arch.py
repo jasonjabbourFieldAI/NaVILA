@@ -162,34 +162,33 @@ class LlavaMetaModel(ABC):
             self.llm.save_pretrained(os.path.join(output_dir, "llm"), state_dict=llm_state_dict, **kwargs)
             self.config.llm_cfg = self.llm.config
 
-        # if self.get_vision_tower():
-        #     print(f"saving vision_tower to {osp.join(output_dir, 'vision_tower')}")
-        #     self.vision_tower.config._name_or_path = osp.join(output_dir, "vision_tower")
-        #     vision_tower_state_dict = OrderedDict(
-        #         {k.split("vision_tower.vision_tower.")[-1]: v for k, v in state_dict.items() if "vision_tower" in k}
-        #     )
-        #     self.vision_tower.vision_tower.save_pretrained(
-        #         os.path.join(output_dir, "vision_tower"),
-        #         state_dict=vision_tower_state_dict, **kwargs
-        #     )
-        #     self.vision_tower.image_processor.save_pretrained(os.path.join(output_dir, "vision_tower"), **kwargs)
-        #     self.config.vision_tower_cfg = self.vision_tower.config
-        #     if hasattr(self.config.vision_tower_cfg, "auto_map"):
-        #         if "radio" not in self.get_vision_tower().__class__.__name__.lower():
-        #             delattr(self.config.vision_tower_cfg, "auto_map")
+        if self.get_vision_tower():
+            print(f"saving vision_tower to {osp.join(output_dir, 'vision_tower')}")
+            self.vision_tower.config._name_or_path = osp.join(output_dir, "vision_tower")
+            vision_tower_state_dict = OrderedDict(
+                {k.split("vision_tower.vision_tower.")[-1]: v for k, v in state_dict.items() if "vision_tower" in k}
+            )
+            self.vision_tower.vision_tower.save_pretrained(
+                os.path.join(output_dir, "vision_tower"),
+                state_dict=vision_tower_state_dict, **kwargs
+            )
+            self.vision_tower.image_processor.save_pretrained(os.path.join(output_dir, "vision_tower"), **kwargs)
+            self.config.vision_tower_cfg = self.vision_tower.config
+            if hasattr(self.config.vision_tower_cfg, "auto_map"):
+                if "radio" not in self.get_vision_tower().__class__.__name__.lower():
+                    delattr(self.config.vision_tower_cfg, "auto_map")
 
-        # if self.get_mm_projector():
-        #     print(f"saving mm_projector to {osp.join(output_dir, 'mm_projector')}")
-        #     self.mm_projector.config._name_or_path = osp.join(output_dir, "mm_projector")
-        #     mm_projector_state_dict = OrderedDict(
-        #         {k.split("mm_projector.")[-1]: v for k, v in state_dict.items() if "mm_projector" in k}
-        #     )
-        #     self.mm_projector.save_pretrained(
-        #         os.path.join(output_dir, "mm_projector"),
-        #         state_dict=mm_projector_state_dict, **kwargs
-        #     )
-        #     self.config.mm_projector_cfg = self.mm_projector.config
-
+        if self.get_mm_projector():
+            print(f"saving mm_projector to {osp.join(output_dir, 'mm_projector')}")
+            self.mm_projector.config._name_or_path = osp.join(output_dir, "mm_projector")
+            mm_projector_state_dict = OrderedDict(
+                {k.split("mm_projector.")[-1]: v for k, v in state_dict.items() if "mm_projector" in k}
+            )
+            self.mm_projector.save_pretrained(
+                os.path.join(output_dir, "mm_projector"),
+                state_dict=mm_projector_state_dict, **kwargs
+            )
+            self.config.mm_projector_cfg = self.mm_projector.config
         # try:
         #     ## update and save top-level config
         #     self.config._name_or_path = output_dir
